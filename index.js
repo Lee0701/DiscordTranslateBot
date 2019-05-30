@@ -18,7 +18,7 @@ const modes = {
   "baidu": baidu,
 }
 
-let guildSettings = {}
+let history = {}
 
 client.on('ready', () => {
   console.log('Logged in as ' + client.user.tag)
@@ -27,19 +27,23 @@ client.on('ready', () => {
 client.on('message', (msg) => {
   if(msg.author === client.user) return
   if(msg.cleanContent.startsWith('^')) return
-  const translatedMessages = {}
-  const configs = parseConfig(msg.channel.topic)
-  configs.forEach((config) => {
-    const toLang = config[0]
-    try {
-      modes[config[1]](msg.cleanContent, 'auto', toLang, (result) => {
-        translatedMessages[toLang] = (result == msg.cleanContent) ? '' : result
-        if(configs.every(c => translatedMessages[c[0]] !== undefined)) sendTranslatedMessage(msg.channel, msg.author, configs.map(c => [c[0], translatedMessages[c[0]]]))
-      })
-    } catch(e) {
-      translatedMessages[toLang] = ''
-    }
-  })
+  translate(msg, (result) => sendTranslatedMessage(msg, result))
+})
+
+client.on('messageUpdate', (oldMsg, newMsg) => {
+  const key = getHistoryKey(oldMsg)
+  if(history[key]) {
+    translate(newMsg, (result) => {
+      oldMsg.channel.fetchMessage(history[key]).then(msg => msg.edit(result))
+    })
+  }
+})
+
+client.on('messageDelete', (msg) => {
+  const key = getHistoryKey(msg)
+  if(history[key]) {
+    msg.channel.fetchMessage(history[key]).then(msg => msg.delete())
+  }
 })
 
 client.login(process.env.TOKEN)
@@ -52,7 +56,34 @@ http.createServer((req, res) => {
 
 const parseConfig = (configText) => (configText || '').split('\n').filter((line) => line.startsWith('@tr ')).map((line) => line.slice(4).split(' '))
 
-const sendTranslatedMessage = (channel, user, messages) => {
-  const message = messages.filter((entry) => entry[1] != '').map(entry => emojiFlags.countryCode(entry[0].split('_')[1]).emoji + ' ' + entry[1]).join(' ')
-  channel.sendMessage(user.username + ': ' + message)
+const translate = (msg, callback) => {
+  const translatedMessages = {}
+  const configs = parseConfig(msg.channel.topic)
+  configs.forEach((config) => {
+    const toLang = config[0]
+    try {
+      modes[config[1]](msg.cleanContent, 'auto', toLang, (result) => {
+        translatedMessages[toLang] = (result == msg.cleanContent) ? '' : result
+        if(configs.every(c => translatedMessages[c[0]] !== undefined)) callback(formatMessage(msg, configs.map(c => [c[0], translatedMessages[c[0]]])))
+      })
+    } catch(e) {
+      translatedMessages[toLang] = ''
+    }
+  })
 }
+
+const formatMessage = (msg, messages) => {
+  return msg.author.username + ': ' + messages.filter((entry) => entry[1] != '').map(entry => emojiFlags.countryCode(entry[0].split('_')[1]).emoji + ' ' + entry[1]).join(' ')
+}
+
+const sendTranslatedMessage = (msg, translated) => {
+  msg.channel.send(translated).then(sent => {
+    const key = getHistoryKey(msg)
+    history[key] = sent.id
+    setTimeout(() => {
+      delete history[key]
+    }, 5*60*1000)
+  })
+}
+
+const getHistoryKey = (msg) => msg.guild.id + '/' + msg.channel.id + '/' + msg.id
