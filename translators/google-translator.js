@@ -12,6 +12,7 @@ const updateTKK = function() {
     res.on('end', () => {
       const match = TKK_REGEX.exec(data)
       if(match) TKK = match[1]
+      console.log(data)
     })
   }).on('error', (err) => console.error(err))
 }

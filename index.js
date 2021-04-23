@@ -10,12 +10,10 @@ const client = new Discord.Client()
 
 const google = require('./translators/google-translator.js')
 const papago = require('./translators/papago-translator.js')
-const baidu = require('./translators/baidu-translator.js')
 
 const modes = {
   "google": google,
   "papago": papago,
-  "baidu": baidu,
 }
 
 let history = {}
