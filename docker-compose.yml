@@ -1,0 +1,8 @@
+version: '3.8'
+services:
+  bot:
+    build: ./
+    image: discord-translate-bot
+    volumes:
+     - ./.env:/usr/src/app/.env
+    restart: always
