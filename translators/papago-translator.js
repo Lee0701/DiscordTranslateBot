@@ -8,7 +8,7 @@ let uuid = null
 let key = ''
 
 const updateKey = () => {
-    key = process.env.PAPAGO_VERSION || 'v1.5.5_69bb9312e1'
+    key = process.env.PAPAGO_VERSION || 'v1.5.9_33e53be80f'
     uuid = uuidv4()
 }
 
